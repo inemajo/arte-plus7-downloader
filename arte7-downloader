@@ -1,0 +1,82 @@
+#!/bin/env python2
+
+import httplib
+import sys
+import os
+import json
+import re
+
+def     ExtractJsonUrl(url):
+
+    if url[:7] != 'http://':
+        print('Unknow protocol')
+        exit(1)
+    website = url[7:].split('/')[0]
+
+    if website != 'www.arte.tv':
+        print('Work only on "www.arte.tv" website...')
+        exit(1)
+    conn = httplib.HTTPConnection("www.arte.tv")
+    conn.request("GET", url[18:])
+    r1 = conn.getresponse()
+    if r1.status != 200:
+        print("url not found!")
+        exit(1)
+
+    data = r1.read()
+    conn.close()
+
+    data = re.search('<div.*class="video-container".*>', data).group(0)
+    data = re.search('(?<=arte_vp_url=").*', data).group(0)
+
+    return (data[:data.rfind('"')])
+
+def     extractJsonData(url):
+
+    website = url[7:].split('/')[0]
+
+    conn = httplib.HTTPConnection(website)
+    conn.request("GET", url[7+len(website):])
+    
+    r1 = conn.getresponse()
+    if r1.status != 200:
+        print("url not found!")
+        exit(1)
+
+    data = r1.read()
+    conn.close()
+
+    jdata = json.loads(data)
+    return jdata
+
+def     download(url, title):
+    title = title.replace(' ', '-').replace("'", "-") \
+                                   .replace('\\', '').replace('?', '') \
+                                   .replace('/', '-sur-') \
+                                   .replace('(', '').replace(')', '')
+    cmdline = "wget -c '%s' -O '%s'" % (url, title)
+    print("Starting download, cmdline=\"%s\"" % (cmdline))
+    os.execvp('wget', ['-c', url, '-O', title])
+
+if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == '-h'):
+    print("%s url [dump]" % (sys.argv[0]))
+    print("\turl must be the url at http://www.arte.tv/guide/fr/plus7")
+    print('\tif you set "dump" option, only echo url and title of video')
+    exit(0)
+
+url = ExtractJsonUrl(sys.argv[1])
+
+jdata =  extractJsonData(url)
+
+title = jdata["videoJsonPlayer"]["VTI"]
+url = jdata["videoJsonPlayer"]["VSR"]["HTTP_REACH_EQ_1"]["url"]
+
+if len(sys.argv) == 2:
+    download(url, title)
+elif sys.argv[2] == 'dump':
+    print(title)
+    print(url)
+else:
+    sys.stderr.write("Unknow what you want, see -h for options")
+    exit(1)
+exit(0)
