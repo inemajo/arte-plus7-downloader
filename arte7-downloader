@@ -1,10 +1,12 @@
-#!/bin/env python2
+#!/usr/bin/python
 
-import httplib
-import sys
-import os
-import json
-import re
+import sys, os, json
+pyversion = sys.version_info[0]
+
+if pyversion == 2:
+ import httplib, re
+else:
+ import http.client
 
 def     ExtractJsonUrl(url):
 
@@ -16,18 +18,30 @@ def     ExtractJsonUrl(url):
     if website != 'www.arte.tv':
         print('Work only on "www.arte.tv" website...')
         exit(1)
-    conn = httplib.HTTPConnection("www.arte.tv")
+
+    if pyversion == 2:
+        conn = httplib.HTTPConnection(website)
+    else:
+        conn = http.client.HTTPConnection(website)
     conn.request("GET", url[18:])
     r1 = conn.getresponse()
     if r1.status != 200:
         print("url not found!")
         exit(1)
 
-    data = r1.read()
+    if pyversion == 3:
+        data = str(r1.read(), 'utf-8')
+    else:
+        data = r1.read()
     conn.close()
 
-    data = re.search('<div.*class="video-container".*>', data).group(0)
-    data = re.search('(?<=arte_vp_url=").*', data).group(0)
+    if pyversion == 2:
+      data = re.search('<div.*class="video-container".*>', data, re.MULTILINE).group(0)
+      data = re.search('(?<=arte_vp_url=").*', data, re.MULTILINE).group(0)
+    else:
+      data = data[data.find('class="video-container"'):]
+      data = data[data.find('arte_vp_url="')+13:]
+      data = data[:data.find('">')]
 
     return (data[:data.rfind('"')])
 
@@ -35,16 +49,21 @@ def     extractJsonData(url):
 
     website = url[7:].split('/')[0]
 
-    conn = httplib.HTTPConnection(website)
-    conn.request("GET", url[7+len(website):])
-    
+    if pyversion == 2:
+        conn = httplib.HTTPConnection(website)
+    else:
+        conn = http.client.HTTPConnection(website)
+
+    conn.request("GET", url[7+len(website):])    
     r1 = conn.getresponse()
     if r1.status != 200:
         print("url not found!")
         exit(1)
 
-    data = r1.read()
-    conn.close()
+    if pyversion == 3:
+        data = str(r1.read(), 'utf-8')
+    else:
+        data = r1.read()
 
     jdata = json.loads(data)
     return jdata
@@ -54,6 +73,7 @@ def     download(url, title):
                                    .replace('\\', '').replace('?', '') \
                                    .replace('/', '-sur-') \
                                    .replace('(', '').replace(')', '')
+    title += '.mp4'
     cmdline = "wget -c '%s' -O '%s'" % (url, title)
     print("Starting download, cmdline=\"%s\"" % (cmdline))
     os.execvp('wget', ['-c', url, '-O', title])
@@ -65,7 +85,6 @@ if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == '-h'):
     exit(0)
 
 url = ExtractJsonUrl(sys.argv[1])
-
 jdata =  extractJsonData(url)
 
 title = jdata["videoJsonPlayer"]["VTI"]

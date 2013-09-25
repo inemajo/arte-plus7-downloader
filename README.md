@@ -3,7 +3,8 @@ arte-plus7-downloader
 
 Script python pour Télécharger les films sur le nouveau site de arte+7 "http://www.arte.tv/guide/fr/plus7" (en français uniquement)
 
--Il n'y a aucune dépendance à une librairie python autre que la "standard librairy" (pour la version 2.7)
+-Fonctionne pour python 2 et 3
+-Il n'y a aucune dépendance à une librairie python spécifique
 -Vous devez posséder wget
 
 * USAGE: `./arte7-downloader url` 
